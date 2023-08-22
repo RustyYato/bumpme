@@ -22,34 +22,11 @@ fn free_chunk_list(mut chunk: NonNull<Chunk>) {
     }
 }
 
-#[repr(C)]
-struct EmptyChunk {
-    end: *const u8,
-    start: *const u8,
-    layout: Layout,
-    next: Option<NonNull<EmptyChunk>>,
-}
-
-#[repr(C)]
 struct Chunk {
     end: Cell<*mut u8>,
     start: *mut u8,
     layout: Layout,
     next: Option<NonNull<Chunk>>,
-}
-
-type EmptyChunkDataType = [usize; 0];
-const EMPTY_CHUNK_DATA: &EmptyChunkDataType = &[];
-
-impl EmptyChunk {
-    const DATA: *const Self = &Self {
-        layout: Layout::new::<EmptyChunkDataType>(),
-        next: None,
-        start: core::ptr::addr_of!(*EMPTY_CHUNK_DATA).cast(),
-        end: core::ptr::addr_of!(*EMPTY_CHUNK_DATA).cast(),
-    };
-
-    const DATA_PTR: NonNull<Self> = unsafe { NonNull::new_unchecked(Self::DATA.cast_mut()) };
 }
 
 impl Chunk {
@@ -99,10 +76,13 @@ impl Bump {
     #[inline]
     pub fn try_with_capacity(capacity: usize) -> Option<Self> {
         let bump = Self {
-            chunk: Cell::new(EmptyChunk::DATA_PTR.cast()),
+            chunk: Cell::new(Self::create_chunk(
+                Layout::from_size_align(capacity, core::mem::align_of::<usize>())
+                    .ok()?
+                    .pad_to_align(),
+                None,
+            )?),
         };
-
-        bump.try_new_chunk(Layout::from_size_align(capacity, 1).unwrap())?;
 
         Some(bump)
     }
@@ -119,6 +99,25 @@ impl Bump {
         chunk.end = Cell::new(unsafe { chunk_ptr.cast::<u8>().as_ptr().add(chunk.layout.size()) });
     }
 
+    fn create_chunk(layout: Layout, next: Option<NonNull<Chunk>>) -> Option<NonNull<Chunk>> {
+        let (layout, _) = Layout::new::<Chunk>().extend(layout).unwrap();
+
+        let ptr_bytes = unsafe { alloc(layout) };
+        let ptr = NonNull::new(ptr_bytes)?;
+        let ptr = ptr.cast::<Chunk>();
+
+        unsafe {
+            ptr.as_ptr().write(Chunk {
+                layout,
+                next,
+                start: ptr_bytes.add(core::mem::size_of::<Chunk>()),
+                end: Cell::new(ptr_bytes.add(layout.size())),
+            });
+        }
+
+        Some(ptr)
+    }
+
     #[cold]
     #[inline(never)]
     fn try_new_chunk(&self, layout: Layout) -> Option<()> {
@@ -132,21 +131,7 @@ impl Bump {
         .unwrap()
         .pad_to_align();
 
-        let (layout, _) = Layout::new::<Chunk>().extend(layout).unwrap();
-
-        let ptr_bytes = unsafe { alloc(layout) };
-        let ptr = NonNull::new(ptr_bytes)?;
-        let ptr = ptr.cast::<Chunk>();
-
-        unsafe {
-            ptr.as_ptr().write(Chunk {
-                layout,
-                next: Some(chunk_ptr),
-                start: ptr_bytes.add(core::mem::size_of::<Chunk>()),
-                end: Cell::new(ptr_bytes.add(layout.size())),
-            });
-        }
-
+        let ptr = Self::create_chunk(layout, Some(chunk_ptr))?;
         self.chunk.set(ptr);
 
         Some(())
