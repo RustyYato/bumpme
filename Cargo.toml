@@ -1,0 +1,6 @@
+[workspace]
+
+members = ['bumpme', 'bump-test']
+
+[profile.release]
+debug = true
