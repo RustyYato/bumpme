@@ -4,7 +4,7 @@ fn main() {
     let mut bump = bumpme::Bump::new();
     for i in 0..1_000_000_000 {
         if i % 10_000 == 0 {
-            bump = bumpme::Bump::new();
+            bump.reset();
         }
         bump.alloc_str("hello world");
     }
@@ -16,7 +16,7 @@ fn main() {
     let mut bump = bumpalo::Bump::new();
     for i in 0..1_000_000_000 {
         if i % 10_000 == 0 {
-            bump = bumpalo::Bump::new();
+            bump.reset();
         }
         bump.alloc_str("hello world");
     }

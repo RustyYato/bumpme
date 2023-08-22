@@ -20,10 +20,16 @@ pub struct Allocation<'a> {
 }
 
 impl Bump {
+    #[inline]
     pub fn new() -> Self {
         Self {
             raw: raw::Bump::new(),
         }
+    }
+
+    #[inline]
+    pub fn reset(&mut self) {
+        self.raw.reset()
     }
 
     #[inline]

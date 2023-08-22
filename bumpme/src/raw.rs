@@ -10,13 +10,15 @@ unsafe impl Send for Bump {}
 impl Drop for Bump {
     #[inline]
     fn drop(&mut self) {
-        let mut chunk = self.chunk.get();
+        free_chunk_list(self.chunk.get())
+    }
+}
 
-        while let Some(next) = unsafe { chunk.as_ref().next } {
-            let layout = unsafe { chunk.as_ref().layout };
-            unsafe { dealloc(chunk.as_ptr().cast(), layout) }
-            chunk = next;
-        }
+fn free_chunk_list(mut chunk: NonNull<Chunk>) {
+    while let Some(next) = unsafe { chunk.as_ref().next } {
+        let layout = unsafe { chunk.as_ref().layout };
+        unsafe { dealloc(chunk.as_ptr().cast(), layout) }
+        chunk = next;
     }
 }
 
@@ -85,7 +87,7 @@ impl Chunk {
 impl Bump {
     #[inline]
     pub fn new() -> Self {
-        Self::with_capacity(4096)
+        Self::with_capacity(1 << 11)
     }
 
     #[inline]
@@ -94,6 +96,7 @@ impl Bump {
             .unwrap_or_else(|| oom(Layout::from_size_align(capacity, 1).unwrap()))
     }
 
+    #[inline]
     pub fn try_with_capacity(capacity: usize) -> Option<Self> {
         let bump = Self {
             chunk: Cell::new(EmptyChunk::DATA_PTR.cast()),
@@ -102,6 +105,18 @@ impl Bump {
         bump.try_new_chunk(Layout::from_size_align(capacity, 1).unwrap())?;
 
         Some(bump)
+    }
+
+    #[inline]
+    pub fn reset(&mut self) {
+        let chunk_ptr = self.chunk.get();
+        let chunk = unsafe { self.chunk.get().as_mut() };
+
+        if let Some(chunk) = chunk.next.take() {
+            free_chunk_list(chunk);
+        }
+
+        chunk.end = Cell::new(unsafe { chunk_ptr.cast::<u8>().as_ptr().add(chunk.layout.size()) });
     }
 
     #[cold]
