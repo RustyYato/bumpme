@@ -68,6 +68,11 @@ impl Bump {
                 .copy_from_str(value),
         )
     }
+
+    pub fn append_from_vec<T>(&self, vec: &mut alloc::vec::Vec<T>) -> boxed::Box<'_, [T]> {
+        self.alloc_layout(Layout::for_value(vec.as_slice()))
+            .append_from_vec(vec)
+    }
 }
 
 impl<'a> Allocation<'a> {
