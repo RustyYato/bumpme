@@ -80,11 +80,14 @@ impl<'a> Allocation<'a> {
         }
     }
 
+    pub fn fits(&self, layout: Layout) {
+        assert!(self.layout.align() >= layout.align());
+        assert!(self.layout.size() >= layout.size());
+    }
+
     #[inline]
     pub fn write<T>(self, value: T) -> boxed::Box<'a, T> {
-        assert!(self.layout.align() >= core::mem::align_of::<T>());
-        assert!(self.layout.size() >= core::mem::size_of::<T>());
-
+        self.fits(Layout::new::<T>());
         let ptr: *mut T = self.ptr.as_ptr().cast();
         unsafe { ptr.write(value) }
         unsafe { boxed::Box::from_raw(ptr) }
@@ -108,10 +111,7 @@ impl<'a> Allocation<'a> {
     where
         T: Copy,
     {
-        assert!(self.layout.align() >= core::mem::align_of::<T>());
-        if !slice.is_empty() {
-            assert!(self.layout.size() / slice.len() >= core::mem::size_of::<T>());
-        }
+        self.fits(Layout::for_value(slice));
 
         let ptr: *mut T = self.ptr.as_ptr().cast();
         unsafe { ptr.copy_from_nonoverlapping(slice.as_ptr(), slice.len()) }
@@ -121,5 +121,21 @@ impl<'a> Allocation<'a> {
     #[inline]
     pub fn copy_from_str(self, slice: &str) -> boxed::Box<'a, str> {
         unsafe { boxed::Box::from_utf8_unchecked(self.copy_from_slice(slice.as_bytes())) }
+    }
+
+    #[inline]
+    pub fn append_from_vec<T>(self, vec: &mut alloc::vec::Vec<T>) -> boxed::Box<'a, [T]> {
+        self.fits(Layout::for_value(vec.as_slice()));
+
+        let ptr = self.ptr.as_ptr().cast::<T>();
+        unsafe {
+            let vec_ptr = vec.as_mut_ptr();
+            let len = vec.len();
+            vec.set_len(0);
+
+            ptr.copy_from_nonoverlapping(vec_ptr, len);
+
+            boxed::Box::from_raw(core::ptr::slice_from_raw_parts_mut(ptr, len))
+        }
     }
 }
