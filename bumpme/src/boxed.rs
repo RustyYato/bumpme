@@ -47,6 +47,14 @@ impl<'a, T: ?Sized> Box<'a, T> {
     }
 
     #[inline]
+    pub fn into_ref(this: Self) -> &'a T
+    where
+        T: NoDropGlue,
+    {
+        Self::into_mut_ref(this)
+    }
+
+    #[inline]
     pub fn drop_in_place(this: Self) -> super::Allocation<'a> {
         super::Allocation {
             ptr: this.ptr.cast(),
