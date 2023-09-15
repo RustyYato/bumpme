@@ -1,6 +1,7 @@
 use core::{
     alloc::Layout,
     marker::PhantomData,
+    mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -35,6 +36,7 @@ impl<'a, T: ?Sized> Box<'a, T> {
 
     #[inline]
     pub fn leak(this: Self) -> &'a mut T {
+        let this = ManuallyDrop::new(this);
         unsafe { &mut *this.ptr.as_ptr() }
     }
 

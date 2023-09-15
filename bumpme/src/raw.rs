@@ -15,10 +15,16 @@ impl Drop for Bump {
 }
 
 fn free_chunk_list(mut chunk: NonNull<Chunk>) {
-    while let Some(next) = unsafe { chunk.as_ref().next } {
+    loop {
+        let next = unsafe { chunk.as_ref().next };
         let layout = unsafe { chunk.as_ref().layout };
         unsafe { dealloc(chunk.as_ptr().cast(), layout) }
-        chunk = next;
+
+        if let Some(next) = next {
+            chunk = next;
+        } else {
+            break;
+        }
     }
 }
 
