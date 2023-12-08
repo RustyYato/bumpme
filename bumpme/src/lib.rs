@@ -85,6 +85,7 @@ impl<'a> Allocation<'a> {
         }
     }
 
+    #[inline]
     pub fn fits(&self, layout: Layout) {
         assert!(self.layout.align() >= layout.align());
         assert!(self.layout.size() >= layout.size());
