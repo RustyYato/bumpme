@@ -191,3 +191,12 @@ impl Default for Bump {
 fn addr<T>(ptr: *mut T) -> usize {
     unsafe { core::mem::transmute(ptr) }
 }
+
+#[test]
+fn test_extremely_large_layout() {
+    let chunk = Bump::create_chunk(Layout::new::<()>(), None).unwrap();
+    let chunk = unsafe { chunk.as_ref() };
+    let ptr = chunk
+        .calculate_alloc_ptr(Layout::from_size_align(chunk.end.get() as usize + 1, 1).unwrap());
+    assert!(ptr.is_null())
+}
