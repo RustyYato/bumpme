@@ -87,8 +87,15 @@ impl<'a> Allocation<'a> {
 
     #[inline]
     pub fn fits(&self, layout: Layout) {
-        assert!(self.layout.align() >= layout.align());
-        assert!(self.layout.size() >= layout.size());
+        #[cold]
+        #[inline(never)]
+        fn mismatch(expected: &Layout, found: &Layout) -> ! {
+            panic!("Tried to use this allocation with an invalid layout: expected size and align at most {expected:?} but found {found:?}")
+        }
+
+        if self.layout.align() < layout.align() || self.layout.size() < layout.size() {
+            mismatch(&self.layout, &layout)
+        }
     }
 
     #[inline]
