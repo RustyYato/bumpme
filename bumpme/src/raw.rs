@@ -40,7 +40,7 @@ impl Chunk {
     fn calculate_alloc_ptr(&self, layout: Layout) -> *mut u8 {
         let end = self.end.get();
         let end_addr = addr(end);
-        let new_addr_unaligned = end_addr - layout.size();
+        let new_addr_unaligned = end_addr.saturating_sub(layout.size());
         let new_addr = new_addr_unaligned & !layout.align().wrapping_sub(1);
         let offset = new_addr as isize - end_addr as isize;
         end.wrapping_offset(offset)
