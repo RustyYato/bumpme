@@ -13,6 +13,13 @@ pub struct Bump {
     pub raw: raw::Bump,
 }
 
+impl From<raw::Bump> for Bump {
+    #[inline]
+    fn from(raw: raw::Bump) -> Self {
+        Self { raw }
+    }
+}
+
 pub struct Allocation<'a> {
     ptr: NonNull<u8>,
     layout: Layout,

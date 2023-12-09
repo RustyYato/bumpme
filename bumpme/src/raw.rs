@@ -1,5 +1,5 @@
 use alloc::alloc::{alloc, dealloc, handle_alloc_error as oom};
-use core::{alloc::Layout, cell::Cell, ptr::NonNull};
+use core::{alloc::Layout, cell::Cell, num::NonZeroUsize, ptr::NonNull};
 
 pub struct Bump {
     chunk: Cell<NonNull<Chunk>>,
@@ -70,20 +70,25 @@ impl Chunk {
 impl Bump {
     #[inline]
     pub fn new() -> Self {
-        Self::with_capacity(1 << 11)
+        const DEFAULT_CAPACITY: NonZeroUsize = match NonZeroUsize::new(1 << 11) {
+            Some(x) => x,
+            None => unreachable!(),
+        };
+
+        Self::with_capacity(DEFAULT_CAPACITY)
     }
 
     #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(capacity: NonZeroUsize) -> Self {
         Self::try_with_capacity(capacity)
-            .unwrap_or_else(|| oom(Layout::from_size_align(capacity, 1).unwrap()))
+            .unwrap_or_else(|| oom(Layout::from_size_align(capacity.get(), 1).unwrap()))
     }
 
     #[inline]
-    pub fn try_with_capacity(capacity: usize) -> Option<Self> {
+    pub fn try_with_capacity(capacity: NonZeroUsize) -> Option<Self> {
         let bump = Self {
             chunk: Cell::new(Self::create_chunk(
-                Layout::from_size_align(capacity, core::mem::align_of::<usize>())
+                Layout::from_size_align(capacity.get(), core::mem::align_of::<usize>())
                     .ok()?
                     .pad_to_align(),
                 None,
