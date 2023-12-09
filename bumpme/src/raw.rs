@@ -136,6 +136,7 @@ impl Bump {
         let chunk = unsafe { chunk_ptr.as_ref() };
 
         let layout = Layout::from_size_align(
+            // chunk.layout.size() <= isize::MAX so  this multiplication will never overflow
             layout.size().max(chunk.layout.size().wrapping_mul(2)),
             layout.align().max(chunk.layout.align()),
         )
