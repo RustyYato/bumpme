@@ -100,11 +100,17 @@ impl Bump {
 
     #[inline]
     pub fn reset(&mut self) {
+        #[cold]
+        #[inline(never)]
+        fn free_chunk_list_slow(chunk: NonNull<Chunk>) {
+            free_chunk_list(chunk)
+        }
+
         let chunk_ptr = self.chunk.get();
         let chunk = unsafe { self.chunk.get().as_mut() };
 
         if let Some(chunk) = chunk.next.take() {
-            free_chunk_list(chunk);
+            free_chunk_list_slow(chunk);
         }
 
         chunk.end = Cell::new(unsafe { chunk_ptr.cast::<u8>().as_ptr().add(chunk.layout.size()) });
