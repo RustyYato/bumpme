@@ -158,4 +158,9 @@ impl<'a> Allocation<'a> {
             boxed::Box::from_raw(core::ptr::slice_from_raw_parts_mut(ptr, len))
         }
     }
+
+    #[inline]
+    pub fn into_raw(self) -> NonNull<u8> {
+        self.ptr
+    }
 }
