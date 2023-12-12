@@ -22,7 +22,7 @@ impl<T: ?Sized> Drop for Box<'_, T> {
 pub trait NoDropGlue {}
 
 impl<T: Copy> NoDropGlue for T {}
-impl<T: Copy> NoDropGlue for [T] {}
+impl<T: NoDropGlue> NoDropGlue for [T] {}
 impl NoDropGlue for str {}
 
 impl<'a, T: ?Sized> Box<'a, T> {
