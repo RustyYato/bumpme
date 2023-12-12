@@ -80,8 +80,9 @@ impl Bump {
 
     #[inline]
     pub fn with_capacity(capacity: NonZeroUsize) -> Self {
-        Self::try_with_capacity(capacity)
-            .unwrap_or_else(|| oom(Layout::from_size_align(capacity.get(), 1).unwrap()))
+        Self::try_with_capacity(capacity).unwrap_or_else(|| {
+            oom(Layout::from_size_align(capacity.get(), core::mem::align_of::<usize>()).unwrap())
+        })
     }
 
     #[inline]
@@ -114,6 +115,22 @@ impl Bump {
         }
 
         chunk.end = Cell::new(unsafe { chunk_ptr.cast::<u8>().as_ptr().add(chunk.layout.size()) });
+    }
+
+    pub fn chunk_allocated_capacity(&self) -> usize {
+        self.chunk_capacity() - self.chunk_remaining_capacity()
+    }
+
+    pub fn chunk_remaining_capacity(&self) -> usize {
+        let chunk = self.chunk.get();
+        let chunk = unsafe { chunk.as_ref() };
+        unsafe { chunk.end.get().offset_from(chunk.start) as usize }
+    }
+
+    pub fn chunk_capacity(&self) -> usize {
+        let chunk = self.chunk.get();
+        let chunk = unsafe { chunk.as_ref() };
+        chunk.layout.size() - core::mem::size_of::<Chunk>()
     }
 
     fn create_chunk(layout: Layout, next: Option<NonNull<Chunk>>) -> Option<NonNull<Chunk>> {
